@@ -71,7 +71,6 @@ export function canMove<T>(board: Board<T>, first: Position, second: Position): 
 
 export function move<T>(generator: Generator<T>, board: Board<T>, first: Position, second: Position): MoveResult<T> {
     if (canMove(board, first, second)) {
-        const effects: Effect<T>[] = [];
         const newBoard: Board<T> = JSON.parse(JSON.stringify(board)) as typeof board;
         newBoard.content[first.row][first.col] = piece(board, second);
         newBoard.content[second.row][second.col] = piece(board, first);
@@ -82,12 +81,44 @@ export function move<T>(generator: Generator<T>, board: Board<T>, first: Positio
         } else {
             matches.push(...getMatches(newBoard, first.row, second.col));
         }
-        matches.forEach(match => {
-            effects.push({ kind: 'Match', match: match })
-        });
+
+        let effects: Effect<T>[] = [];
+        effects = handleMatches(matches, newBoard, generator, effects);
+        //check for matches after refill here and recall the function
+
         return { board: { ...newBoard }, effects: effects };
     }
     return { board: board, effects: [] }
+}
+
+function handleMatches<T>(matches: Match<T>[], newBoard: Board<T>, generator: Generator<T>, effects: Effect<T>[]) {
+    matches.forEach(match => {
+        effects.push({ kind: 'Match', match: match })
+        match.positions.forEach(position => {
+            newBoard.content[position.row][position.col] = null;
+        });
+    });
+    for (let i: number = newBoard.height - 1; i >= 0; i--) {
+        for (let j: number = 0; j < newBoard.width; j++) {
+            if (!newBoard.content[i][j]) {
+                for (let k: number = i; k > 0; k--) {
+                    newBoard.content[i][j] = newBoard.content[k - 1][j];
+                    newBoard.content[k - 1][j] = null;
+                    if (newBoard.content[i][j])
+                        break;
+                }
+            }
+        }
+    }
+    for (let i = newBoard.height - 1; i >= 0; i--) {
+        for (let j = 0; j < newBoard.width; j++) {
+            if (!newBoard.content[i][j]) {
+                newBoard.content[i][j] = generator.next();
+            }
+        }
+    }
+    effects.push({ kind: 'Refill', board: newBoard })
+    return effects;
 }
 
 function checkMatches<T>(board: Board<T>, row: number, col: number): boolean {
