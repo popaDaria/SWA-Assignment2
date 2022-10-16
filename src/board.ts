@@ -28,7 +28,6 @@ export type MoveResult<T> = {
 }
 
 export function create<T>(generator: Generator<T>, width: number, height: number): Board<T> {
-
     let content: T[][] = []
     for (let i = 0; i <= height - 1; i++) {
         content[i] = [];
@@ -36,12 +35,7 @@ export function create<T>(generator: Generator<T>, width: number, height: number
             content[i][j] = generator.next()
         }
     }
-
-    const board: Board<T> = {
-        width: width,
-        height: height,
-        content: content
-    }
+    const board: Board<T> = { width: width, height: height, content: content }
     return board;
 }
 
@@ -88,7 +82,7 @@ class GeneratorFake<T> implements Generator<T> {
 
     next(): T {
         let v = this.upcoming.shift()
-        if (v === undefined) 
+        if (v === undefined)
             throw new Error('Empty queue')
         else
             return v
@@ -112,7 +106,7 @@ export function move<T>(generator: Generator<T>, board: Board<T>, first: Positio
         matches.forEach(match => {
             effects.push({ kind: 'Match', match: match })
         });
-        return { board: {...newBoard}, effects: effects };
+        return { board: { ...newBoard }, effects: effects };
     }
     return { board: board, effects: [] }
 }
@@ -144,22 +138,15 @@ function checkMatches<T>(board: Board<T>, row: number, col: number): boolean {
 }
 
 function getMatches<T>(board: Board<T>, row: number, col: number): Match<T>[] {
-    const matches: Match<T>[] = [];
-    const match: Match<T> = { matched: board.content[row][col], positions: [] };
+    const matches: Match<T>[] = [], match: Match<T> = { matched: board.content[row][col], positions: [] };
     for (let i = 0; i < board.width; i++) {
-        if (board.content[row][i] === board.content[row][col]) {
-            match.positions.push({ row: row, col: i });
-        } else {
-            match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
-        }
+        board.content[row][i] === board.content[row][col] ? match.positions.push({ row: row, col: i })
+            : match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
     }
     match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
     for (let i = 0; i < board.height; i++) {
-        if (board.content[i][col] === board.content[row][col]) {
-            match.positions.push({ row: i, col: col });
-        } else {
-            match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
-        }
+        board.content[i][col] === board.content[row][col] ? match.positions.push({ row: i, col: col })
+            : match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
     }
     match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
     return matches;
