@@ -50,6 +50,73 @@ export function piece<T>(board: Board<T>, p: Position): T | undefined {
     return piece;
 }
 
+export function canMove<T>(board: Board<T>, first: Position, second: Position): boolean {
+    if (piece(board, second) && piece(board, first)) {
+        if (first.col === second.col || first.row === second.row) {
+            const newBoard: Board<T> = JSON.parse(JSON.stringify(board)) as typeof board;
+            newBoard.content[first.row][first.col] = piece(board, second);
+            newBoard.content[second.row][second.col] = piece(board, first);
+            if (checkMatches(newBoard, first.row, first.col)) {
+                return true;
+            }
+            if (first.col === second.col) {
+                if (checkMatches(newBoard, second.row, first.col)) {
+                    return true;
+                }
+            } else {
+                if (checkMatches(newBoard, first.row, second.col)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return false;
+    }
+    return false;
+}
+
+class GeneratorFake<T> implements Generator<T> {
+    private upcoming: T[]
+
+    constructor(...upcoming: T[]) {
+        this.upcoming = upcoming
+    }
+
+    prepare(...e: T[]) {
+        this.upcoming.push(...e)
+    }
+
+    next(): T {
+        let v = this.upcoming.shift()
+        if (v === undefined) 
+            throw new Error('Empty queue')
+        else
+            return v
+    }
+
+}
+
+export function move<T>(generator: Generator<T>, board: Board<T>, first: Position, second: Position): MoveResult<T> {
+    if (canMove(board, first, second)) {
+        const effects: Effect<T>[] = [];
+        const newBoard: Board<T> = JSON.parse(JSON.stringify(board)) as typeof board;
+        newBoard.content[first.row][first.col] = piece(board, second);
+        newBoard.content[second.row][second.col] = piece(board, first);
+
+        let matches: Match<T>[] = getMatches(newBoard, first.row, first.col);
+        if (first.col === second.col) {
+            matches.push(...getMatches(newBoard, second.row, first.col));
+        } else {
+            matches.push(...getMatches(newBoard, first.row, second.col));
+        }
+        matches.forEach(match => {
+            effects.push({ kind: 'Match', match: match })
+        });
+        return { board: {...newBoard}, effects: effects };
+    }
+    return { board: board, effects: [] }
+}
+
 function checkMatches<T>(board: Board<T>, row: number, col: number): boolean {
     let count = 0;
     for (let i = 0; i < board.width; i++) {
@@ -76,38 +143,24 @@ function checkMatches<T>(board: Board<T>, row: number, col: number): boolean {
     return false;
 }
 
-export function canMove<T>(board: Board<T>, first: Position, second: Position): boolean {
-    if (first.col === second.col || first.row === second.row) {
-        const newBoard: Board<T> = JSON.parse(JSON.stringify(board)) as typeof board;
-        if (piece(board, second) && piece(board, first)) {
-            newBoard.content[first.row][first.col] = piece(board, second);
-            newBoard.content[second.row][second.col] = piece(board, first);
+function getMatches<T>(board: Board<T>, row: number, col: number): Match<T>[] {
+    const matches: Match<T>[] = [];
+    const match: Match<T> = { matched: board.content[row][col], positions: [] };
+    for (let i = 0; i < board.width; i++) {
+        if (board.content[row][i] === board.content[row][col]) {
+            match.positions.push({ row: row, col: i });
         } else {
-            return false;
+            match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
         }
-        if (first.col === second.col) {
-            if (checkMatches(newBoard, second.row, first.col)) {
-                return true;
-            }
-            if (checkMatches(newBoard, first.row, first.col)) {
-                return true;
-            }
+    }
+    match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
+    for (let i = 0; i < board.height; i++) {
+        if (board.content[i][col] === board.content[row][col]) {
+            match.positions.push({ row: i, col: col });
         } else {
-            if (checkMatches(newBoard, first.row, second.col)) {
-                return true;
-            }
-            if (checkMatches(newBoard, first.row, first.col)) {
-                return true;
-            }
+            match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
         }
-        return false;
     }
-    return false;
-}
-
-export function move<T>(generator: Generator<T>, board: Board<T>, first: Position, second: Position): MoveResult<T> {
-    if (canMove(board, first, second)) {
-        return { board: board, effects: [] }
-    }
-    return { board: board, effects: [] }
+    match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
+    return matches;
 }
