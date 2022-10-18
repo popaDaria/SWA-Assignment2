@@ -35,13 +35,11 @@ export function create<T>(generator: Generator<T>, width: number, height: number
             content[i][j] = generator.next()
         }
     }
-    const board: Board<T> = { width: width, height: height, content: content }
-    return board;
+    return { width: width, height: height, content: content };
 }
 
 export function piece<T>(board: Board<T>, p: Position): T | undefined {
-    const piece: T = board.content[p.row] ? board.content[p.row][p.col] : undefined;
-    return piece;
+    return board.content[p.row] ? board.content[p.row][p.col] : undefined;
 }
 
 export function canMove<T>(board: Board<T>, first: Position, second: Position): boolean {
@@ -51,9 +49,9 @@ export function canMove<T>(board: Board<T>, first: Position, second: Position): 
             newBoard.content[first.row][first.col] = piece(board, second);
             newBoard.content[second.row][second.col] = piece(board, first);
             if (getMatches(newBoard).length > 0) {
-                return true
+                return true;
             }
-            return false
+            return false;
         }
         return false;
     }
@@ -67,7 +65,7 @@ export function move<T>(generator: Generator<T>, board: Board<T>, first: Positio
         newBoard.content[second.row][second.col] = piece(board, first);
         return { board: { ...newBoard }, effects: handleMatches(getMatches(newBoard), newBoard, generator, []) };
     }
-    return { board: board, effects: [] }
+    return { board: board, effects: [] };
 }
 
 function handleMatches<T>(matches: Match<T>[], newBoard: Board<T>, generator: Generator<T>, effects: Effect<T>[]) {
