@@ -50,19 +50,10 @@ export function canMove<T>(board: Board<T>, first: Position, second: Position): 
             const newBoard: Board<T> = JSON.parse(JSON.stringify(board)) as typeof board;
             newBoard.content[first.row][first.col] = piece(board, second);
             newBoard.content[second.row][second.col] = piece(board, first);
-            if (checkMatches(newBoard, first.row, first.col)) {
-                return true;
+            if (getMatches(newBoard).length > 0) {
+                return true
             }
-            if (first.col === second.col) {
-                if (checkMatches(newBoard, second.row, first.col)) {
-                    return true;
-                }
-            } else {
-                if (checkMatches(newBoard, first.row, second.col)) {
-                    return true;
-                }
-            }
-            return false;
+            return false
         }
         return false;
     }
@@ -74,19 +65,7 @@ export function move<T>(generator: Generator<T>, board: Board<T>, first: Positio
         const newBoard: Board<T> = JSON.parse(JSON.stringify(board)) as typeof board;
         newBoard.content[first.row][first.col] = piece(board, second);
         newBoard.content[second.row][second.col] = piece(board, first);
-
-        let matches: Match<T>[] = getMatches(newBoard, first.row, first.col);
-        if (first.col === second.col) {
-            matches.push(...getMatches(newBoard, second.row, first.col));
-        } else {
-            matches.push(...getMatches(newBoard, first.row, second.col));
-        }
-
-        let effects: Effect<T>[] = [];
-        effects = handleMatches(matches, newBoard, generator, effects);
-        //check for matches after refill here and recall the function
-
-        return { board: { ...newBoard }, effects: effects };
+        return { board: { ...newBoard }, effects: handleMatches(getMatches(newBoard), newBoard, generator, []) };
     }
     return { board: board, effects: [] }
 }
@@ -118,46 +97,42 @@ function handleMatches<T>(matches: Match<T>[], newBoard: Board<T>, generator: Ge
         }
     }
     effects.push({ kind: 'Refill', board: newBoard })
-    return effects;
+    if (getMatches(newBoard).length !== 0) {
+        return handleMatches(getMatches(newBoard), newBoard, generator, effects);
+    } else {
+        return effects;
+    }
 }
 
-function checkMatches<T>(board: Board<T>, row: number, col: number): boolean {
-    let count = 0;
-    for (let i = 0; i < board.width; i++) {
-        if (board.content[row][i] === board.content[row][col]) {
-            count++;
-            if (count >= 3) {
-                return true;
-            }
-        } else {
-            count = 0;
-        }
-    }
-    count = 0;
+function getMatches<T>(board: Board<T>): Match<T>[] {
+    const matches: Match<T>[] = [], match: Match<T> = { matched: undefined, positions: [] };
     for (let i = 0; i < board.height; i++) {
-        if (board.content[i][col] === board.content[row][col]) {
-            count++;
-            if (count >= 3) {
-                return true;
+        for (let j = 0; j < board.width - 1; j++) {
+            if (board.content[i][j] === board.content[i][j + 1]) {
+                if (match.positions.length > 0 ? (!(JSON.stringify(match.positions[match.positions.length - 1]) === JSON.stringify({ row: i, col: j }))) : true) {
+                    match.positions.push({ row: i, col: j })
+                }
+                match.matched = board.content[i][j + 1];
+                match.positions.push({ row: i, col: j + 1 })
+            } else {
+                match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
             }
-        } else {
-            count = 0;
         }
+        match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
     }
-    return false;
-}
-
-function getMatches<T>(board: Board<T>, row: number, col: number): Match<T>[] {
-    const matches: Match<T>[] = [], match: Match<T> = { matched: board.content[row][col], positions: [] };
-    for (let i = 0; i < board.width; i++) {
-        board.content[row][i] === board.content[row][col] ? match.positions.push({ row: row, col: i })
-            : match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
+    for (let j = board.width - 1; j >= 0; j--) {
+        for (let i = 0; i < board.height - 1; i++) {
+            if (board.content[i][j] === board.content[i + 1][j]) {
+                if (match.positions.length > 0 ? (!(JSON.stringify(match.positions[match.positions.length - 1]) === JSON.stringify({ row: i, col: j }))) : true) {
+                    match.positions.push({ row: i, col: j })
+                }
+                match.matched = board.content[i + 1][j];
+                match.positions.push({ row: i + 1, col: j })
+            } else {
+                match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
+            }
+        }
+        match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
     }
-    match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
-    for (let i = 0; i < board.height; i++) {
-        board.content[i][col] === board.content[row][col] ? match.positions.push({ row: i, col: col })
-            : match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
-    }
-    match.positions.length < 3 ? match.positions = [] : (matches.push({ ...match }), match.positions = [])
     return matches;
 }
